@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<th class="order-number"><span class="nobr"><?php esc_html_e( 'Order', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<th class="order-date"><span class="nobr"><?php esc_html_e( 'Date', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<th class="order-status"><span class="nobr"><?php esc_html_e( 'Status', 'woocommerce-subscriptions-gifting' ); ?></span></th>
-			<?php if ( get_current_user_id() == $subscription->get_user_id() ) : ?>
+			<?php if ( get_current_user_id() === $subscription->get_user_id() ) : ?>
 			<th class="order-total"><span class="nobr"><?php echo esc_html_x( 'Total', 'table heading', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<?php endif; ?>
 			<th class="order-actions">&nbsp;</th>
@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			$order        = wc_get_order( $subscription_order );
 			$display_link = current_user_can( 'view_order', wcsg_get_objects_id( $order ) );
 			$item_count = $order->get_item_count();
-			$is_recipient = get_current_user_id() != $order->get_user_id();
+			$is_recipient = get_current_user_id() !== $order->get_user_id();
 
 			if ( wcsg_is_woocommerce_pre( '3.0' ) ) {
 				$order_date = $order->order_date;
@@ -60,7 +60,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					}
 					?>
 				</td>
-				<?php if ( get_current_user_id() == $order->get_user_id() ) : ?>
+				<?php if ( get_current_user_id() === $order->get_user_id() ) : ?>
 				<td class="order-total" data-title="<?php echo esc_attr_x( 'Total', 'Used in data attribute. Escaped', 'woocommerce-subscriptions-gifting' ); ?>">
 					<?php
 					// translators: $1: formatted order total for the order, $2: number of items bought

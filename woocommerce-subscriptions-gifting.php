@@ -631,6 +631,7 @@ class WCS_Gifting {
 	 */
 	public static function get_recent_orders_template( $located, $template_name, $args ) {
 		_deprecated_function( __FUNCTION__, '2.0.0', 'WCSG_Template_Loader::get_recent_orders_template()' );
+		WCSG_Template_Loader::get_recent_orders_template( $located, $template_name, $args );
 	}
 }
 

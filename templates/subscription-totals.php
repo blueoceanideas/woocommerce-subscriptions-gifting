@@ -13,7 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 
 <?php $allow_remove_items = wcs_can_items_be_removed( $subscription ); ?>
-<h2><?php esc_html_e( 'Subscription Info', 'woocommerce-subscriptions-gifting' ); ?></h2>
+<?php $subscription_items = $subscription->get_items(); ?>
+<h2><?php esc_html_e( _n( 'Subscription Item', 'Subscription Items', sizeof( $subscription_items ), 'woocommerce-subscriptions-gifting' ), 'woocommerce-subscriptions-gifting' ) ?></h2>
 <table class="shop_table order_details">
 	<thead>
 		<tr>
@@ -25,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	</thead>
 	<tbody>
 		<?php
-		if ( sizeof( $subscription_items = $subscription->get_items() ) > 0 ) {
+		if ( sizeof( $subscription_items ) > 0 ) {
 
 			foreach ( $subscription_items as $item_id => $item ) {
 				$_product  = apply_filters( 'woocommerce_subscriptions_order_item_product', $subscription->get_product_from_item( $item ), $item );
