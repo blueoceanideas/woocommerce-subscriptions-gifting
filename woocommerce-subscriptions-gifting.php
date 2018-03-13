@@ -128,7 +128,7 @@ class WCS_Gifting {
 	 * Register/queue frontend scripts.
 	 */
 	public static function gifting_scripts() {
-		wp_register_script( 'woocommerce_subscriptions_gifting', plugins_url( '/js/wcs-gifting.js', __FILE__ ), array( 'jquery' ) );
+		wp_register_script( 'woocommerce_subscriptions_gifting', plugins_url( '/js/wcs-gifting.js', __FILE__ ), array( 'jquery' ), '2.0.0', true );
 		wp_enqueue_script( 'woocommerce_subscriptions_gifting' );
 	}
 
