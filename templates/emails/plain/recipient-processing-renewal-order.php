@@ -9,6 +9,10 @@ echo __( 'Your subscription renewal order has been received and is now being pro
 
 echo "\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n";
 
+if ( is_callable( array( 'WC_Emails', 'order_downloads' ) ) ) {
+	echo wp_kses_post( WC_Emails::instance()->order_downloads( $order, $sent_to_admin, $plain_text, $email ) );
+}
+
 $subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
 
 foreach ( $subscriptions as $subscription ) {
