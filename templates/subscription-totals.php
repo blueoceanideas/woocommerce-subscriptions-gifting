@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 <?php $allow_remove_items = wcs_can_items_be_removed( $subscription ); ?>
 <?php $subscription_items = $subscription->get_items(); ?>
-<h2><?php esc_html( _n( 'Subscription Item', 'Subscription Items', sizeof( $subscription_items ), 'woocommerce-subscriptions-gifting' ) ) ?></h2>
+<h2><?php echo esc_html( _n( 'Subscription Item', 'Subscription Items', sizeof( $subscription_items ), 'woocommerce-subscriptions-gifting' ) ) ?></h2>
 <table class="shop_table order_details">
 	<thead>
 		<tr>
