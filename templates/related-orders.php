@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 ?>
+<?php $show_prices = wcsg_is_wc_subscriptions_pre( '2.2.19' ); ?>
 <header>
 	<h2><?php esc_html_e( 'Related Orders', 'woocommerce-subscriptions-gifting' ); ?></h2>
 </header>
@@ -16,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<th class="order-number"><span class="nobr"><?php esc_html_e( 'Order', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<th class="order-date"><span class="nobr"><?php esc_html_e( 'Date', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<th class="order-status"><span class="nobr"><?php esc_html_e( 'Status', 'woocommerce-subscriptions-gifting' ); ?></span></th>
-			<?php if ( get_current_user_id() === $subscription->get_user_id() ) : ?>
+			<?php if ( $show_prices || get_current_user_id() === $subscription->get_user_id() ) : ?>
 			<th class="order-total"><span class="nobr"><?php echo esc_html_x( 'Total', 'table heading', 'woocommerce-subscriptions-gifting' ); ?></span></th>
 			<?php endif; ?>
 			<th class="order-actions">&nbsp;</th>
@@ -39,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 			?><tr class="order">
 				<td class="order-number" data-title="<?php esc_attr_e( 'Order Number', 'woocommerce-subscriptions-gifting' ); ?>">
-					<?php if ( $display_link && ! $is_recipient ) : ?>
+					<?php if ( $display_link && ( ! $is_recipient || $show_prices ) ) : ?>
 					<a href="<?php echo esc_url( $order->get_view_order_url() ); ?>">
 						#<?php echo esc_html( $order->get_order_number() ); ?>
 					</a>
@@ -60,7 +61,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					}
 					?>
 				</td>
-				<?php if ( get_current_user_id() === $order->get_user_id() ) : ?>
+				<?php if ( $show_prices || get_current_user_id() === $order->get_user_id() ) : ?>
 				<td class="order-total" data-title="<?php echo esc_attr_x( 'Total', 'Used in data attribute. Escaped', 'woocommerce-subscriptions-gifting' ); ?>">
 					<?php
 					// translators: $1: formatted order total for the order, $2: number of items bought
@@ -84,7 +85,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 							'name' => esc_html_x( 'Cancel', 'cancel subscription', 'woocommerce-subscriptions-gifting' ),
 						);
 					}
-					if ( $display_link && ! $is_recipient ) {
+					if ( $display_link && ( ! $is_recipient || $show_prices ) ) {
 						$actions['view'] = array(
 							'url'  => $order->get_view_order_url(),
 							'name' => esc_html_x( 'View', 'view a subscription', 'woocommerce-subscriptions-gifting' ),

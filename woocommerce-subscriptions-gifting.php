@@ -267,9 +267,10 @@ class WCS_Gifting {
 	 * Adds row to subscription details table that displays subscription period for recipients.
 	 *
 	 * @param WC_Subscription $subscription Subscription object
+	 * @since 2.0.0
 	 */
 	public static function add_billing_period_table_row( $subscription ) {
-		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
+		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.19' ) && WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
 			$subscription_details = array(
 				'recurring_amount'            => '',
 				'subscription_period'         => $subscription->get_billing_period(),
@@ -292,11 +293,12 @@ class WCS_Gifting {
 	 *
 	 * @param string $formatted_order_total The order total formatted
 	 * @param WC_Subscription $subscription Subscription object
+	 * @since 2.0.0
 	 */
 	public static function get_formatted_recipient_total( $formatted_order_total, $subscription ) {
 		global $wp;
 
-		if ( is_account_page() && isset( $wp->query_vars['subscriptions'] ) && WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
+		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.19' ) && is_account_page() && isset( $wp->query_vars['subscriptions'] ) && WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
 			$formatted_order_total = '-';
 		}
 		return $formatted_order_total;
