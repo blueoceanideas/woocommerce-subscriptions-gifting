@@ -12,9 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 <p><?php esc_html_e( 'Your subscription renewal order has been received and is now being processed. Your order details are shown below for your reference:', 'woocommerce-subscriptions-gifting' ); ?></p>
 
 <?php
-if ( is_callable( array( 'WC_Emails', 'order_downloads' ) ) ) {
-	echo wp_kses_post( WC_Emails::instance()->order_downloads( $order, $sent_to_admin, $plain_text, $email ) );
-}
+WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
 
 if ( 0 < count( $subscriptions ) ) : ?>
 	<table cellspacing="0" cellpadding="6" style="width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
