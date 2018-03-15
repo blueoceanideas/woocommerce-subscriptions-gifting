@@ -83,3 +83,14 @@ function wcsg_get_objects_id( $object ) {
 
 	return $id;
 }
+
+/**
+* Check if the active version of WooCommerce Subscriptions is older than the specified version.
+*
+* @param string $version
+* @return bool
+* @since 2.0.0
+*/
+function wcsg_is_wc_subscriptions_pre( $version ) {
+	return version_compare( WC_Subscriptions::$version, $version, '<' );
+}
