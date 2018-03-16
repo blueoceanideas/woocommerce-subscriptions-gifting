@@ -537,7 +537,7 @@ class WCS_Gifting {
 
 		} else {
 
-			$subscription->recipient_user = $recipient_user_id;
+			$subscription->recipient_user = $user_id;
 
 			if ( 'save' === $save ) {
 				if ( ! empty( $meta_id ) ) {
