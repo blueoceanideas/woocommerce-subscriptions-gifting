@@ -23,7 +23,7 @@ if ( 0 < count( $subscriptions ) ) : ?>
 foreach ( $subscriptions as $subscription ) { ?>
 	<thead>
 		<tr>
-			<td style="padding: -6" colspan="3"><h3><?php printf( esc_html__( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) ?></h3></td>
+			<td style="padding: -6" colspan="3"><h2><?php printf( esc_html__( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) ?></h2></td>
 		</tr>
 	</thead>
 		<tr>
