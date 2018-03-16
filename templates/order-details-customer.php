@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 ?>
-<?php if ( ! wc_ship_to_billing_address_only() && $order->needs_shipping_address() ): ?>
+<?php if ( ! wc_ship_to_billing_address_only() && $order->needs_shipping_address() ) : ?>
 <section class="woocommerce-customer-details">
 
 	<section class="woocommerce-columns woocommerce-columns--2 woocommerce-columns--addresses col2-set addresses">
