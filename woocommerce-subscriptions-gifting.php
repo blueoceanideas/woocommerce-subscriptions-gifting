@@ -617,6 +617,7 @@ function wcsg_load() {
 		return;
 	}
 
+	require_once( 'includes/wcsg-compatibility-functions.php' );
 	require_once( 'includes/class-wcsg-product.php' );
 	require_once( 'includes/class-wcsg-cart.php' );
 	require_once( 'includes/class-wcsg-checkout.php' );
@@ -626,7 +627,6 @@ function wcsg_load() {
 	require_once( 'includes/class-wcsg-download-handler.php' );
 	require_once( 'includes/class-wcsg-admin.php' );
 	require_once( 'includes/class-wcsg-recipient-addresses.php' );
-	require_once( 'includes/wcsg-compatibility-functions.php' );
 
 	WCS_Gifting::init();
 }

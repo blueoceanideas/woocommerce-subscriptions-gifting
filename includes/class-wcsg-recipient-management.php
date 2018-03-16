@@ -39,16 +39,6 @@ class WCSG_Recipient_Management {
 
 		add_action( 'woocommerce_subscription_status_updated', __CLASS__ . '::maybe_update_recipient_role', 10, 2 );
 
-		add_action( 'woocommerce_loaded', __CLASS__ . '::attach_dependant_hooks', 10 );
-	}
-
-	/**
-	 * Attach WooCommerce version dependent hooks
-	 *
-	 * @since 1.0.1
-	 */
-	public static function attach_dependant_hooks() {
-
 		if ( wcsg_is_woocommerce_pre( '3.0' ) ) {
 			add_action( 'woocommerce_add_order_item_meta', __CLASS__ . '::maybe_add_recipient_order_item_meta', 10, 2 );
 		} else {
@@ -523,6 +513,16 @@ class WCSG_Recipient_Management {
 		if ( $recipient_user_id ) {
 			$item->add_meta_data( 'wcsg_recipient', 'wcsg_recipient_id_' . $recipient_user_id );
 		}
+	}
+
+	/**
+	 * Attach WooCommerce version dependent hooks
+	 *
+	 * @since 1.0.1
+	 * @deprecated 2.0.0
+	 */
+	public static function attach_dependant_hooks() {
+		_deprecated_function( __METHOD__, '2.0.0', __CLASS__ . '::init()' );
 	}
 }
 WCSG_Recipient_Management::init();
