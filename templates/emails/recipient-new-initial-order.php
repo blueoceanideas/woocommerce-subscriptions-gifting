@@ -43,7 +43,7 @@ foreach ( $subscriptions as $subscription_id ) {
 	$subscription = wcs_get_subscription( $subscription_id );?>
 	<thead>
 		<tr>
-			<td style="padding: -6" colspan="3"><h3><?php printf( esc_html__( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) ?></h3></td>
+			<td style="padding: -6" colspan="3"><h2><?php printf( esc_html__( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) ?></h2></td>
 		</tr>
 	</thead>
 		<tr>
@@ -51,12 +51,20 @@ foreach ( $subscriptions as $subscription_id ) {
 			<th class="td" scope="col" style="text-align:left;"><?php esc_html_e( 'Quantity', 'woocommerce-subscriptions-gifting' ); ?></th>
 		</tr>
 	<tbody>
-		<?php echo wp_kses_post( WC_Subscriptions_Email::email_order_items_table( $subscription, array(
+		<?php
+		echo wp_kses_post( WC_Subscriptions_Email::email_order_items_table( $subscription, array(
 			'show_download_links' => true,
 			'show_sku'            => false,
 			'show_purchase_note'  => true,
-		) ) ); ?>
-	</tbody><?php
+		) ) );
+
+		if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) { ?>
+		<tr>
+			<td style="padding: 0" colspan="3"><p><?php WC_Subscriptions_Email::order_download_details( $subscription, $sent_to_admin, $plain_text, $email ); ?></p></td>
+		</tr>
+		<?php } ?>
+	</tbody>
+	<?php
 }
 echo '</table>';
 do_action( 'woocommerce_email_footer', $email );

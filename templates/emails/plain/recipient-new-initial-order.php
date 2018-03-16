@@ -33,6 +33,9 @@ foreach ( $subscriptions as $subscription_id ) {
 		'image_size'          => '',
 		'plain_text'          => true,
 	) );
+	if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) {
+		WC_Subscriptions_Email::order_download_details( $subscription, $sent_to_admin, $plain_text, $email );
+	}
 }
 
 echo apply_filters( 'woocommerce_email_footer_text', get_option( 'woocommerce_email_footer_text' ) );
