@@ -400,8 +400,12 @@ class WCSG_Download_Handler {
 				if ( wcsg_is_woocommerce_pre( '3.0' ) ) {
 					$files[ $download->download_id ] = $product->get_file( $download->download_id );
 				} else {
-					$file                            = $product->get_file( $download->download_id );
-					$files[ $download->download_id ] = $file->get_data();
+					$customer_download = new WC_Customer_Download( $download );
+					$file              = $product->get_file( $download->download_id );
+
+					$files[ $download->download_id ]                        = $file->get_data();
+					$files[ $download->download_id ]['downloads_remaining'] = $customer_download->get_downloads_remaining();
+					$files[ $download->download_id ]['access_expires']      = $customer_download->get_access_expires();
 				}
 
 				$files[ $download->download_id ]['download_url'] = add_query_arg(
