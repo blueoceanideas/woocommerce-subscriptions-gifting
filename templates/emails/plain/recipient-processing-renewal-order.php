@@ -9,7 +9,9 @@ echo __( 'Your subscription renewal order has been received and is now being pro
 
 echo "\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n";
 
-WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
+if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) {
+	WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
+}
 
 $subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
 
