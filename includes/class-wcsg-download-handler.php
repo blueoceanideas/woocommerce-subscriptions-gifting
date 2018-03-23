@@ -183,6 +183,11 @@ class WCSG_Download_Handler {
 	public static function download_permissions_meta_box_save( $subscription_id ) {
 		global $wpdb;
 
+		// Post WC 3.0 WC_Meta_Box_Order_Downloads::save() no longer overrides the user ID associated with the download permissions so the contents of this function aren't necessary.
+		if ( ! wcsg_is_woocommerce_pre( '3.0' ) ) {
+			return;
+		}
+
 		if ( isset( $_POST['wcsg_download_permission_ids'] ) && isset( $_POST['woocommerce_meta_nonce'] ) && wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
 
 			remove_action( 'woocommerce_process_shop_order_meta', 'WC_Meta_Box_Order_Downloads::save', 30 );
