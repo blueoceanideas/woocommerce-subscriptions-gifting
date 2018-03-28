@@ -51,7 +51,7 @@ class WCSG_Template_Loader {
 	 * @since 2.0.0
 	 */
 	public static function get_subscription_totals_template( $located, $template_name, $args ) {
-		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.18' ) && 'myaccount/subscription-totals.php' === $template_name ) {
+		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.19' ) && 'myaccount/subscription-totals.php' === $template_name ) {
 			$subscription = $args['subscription'];
 			if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
 				$located = wc_locate_template( 'subscription-totals.php', '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
@@ -70,7 +70,7 @@ class WCSG_Template_Loader {
 	 * @since 2.0.0
 	 */
 	public static function get_customer_details_template( $located, $template_name, $args ) {
-		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.18' ) && 'order/order-details-customer.php' === $template_name ) {
+		if ( ! wcsg_is_wc_subscriptions_pre( '2.2.19' ) && 'order/order-details-customer.php' === $template_name ) {
 			$subscription = $args['order'];
 			if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) {
 				$located = wc_locate_template( 'order-details-customer.php', '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
