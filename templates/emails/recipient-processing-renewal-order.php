@@ -15,31 +15,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) {
 	WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
 }
-
-if ( 0 < count( $subscriptions ) ) : ?>
-	<table cellspacing="0" cellpadding="6" style="width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
-<?php endif;
-
-foreach ( $subscriptions as $subscription ) { ?>
-	<thead>
-		<tr>
-			<td style="padding: -6" colspan="3"><h2><?php printf( esc_html__( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) ?></h2></td>
-		</tr>
-	</thead>
-		<tr>
-			<th class="td" scope="col" style="text-align:left;"><?php esc_html_e( 'Product', 'woocommerce-subscriptions-gifting' ); ?></th>
-			<th class="td" scope="col" style="text-align:left;"><?php esc_html_e( 'Quantity', 'woocommerce-subscriptions-gifting' ); ?></th>
-		</tr>
-	<tbody>
-		<?php echo wp_kses_post( WC_Subscriptions_Email::email_order_items_table( $subscription, array(
-			'show_download_links' => true,
-			'show_sku'            => false,
-			'show_purchase_note'  => true,
-		) ) ); ?>
-	</tbody><?php
-}
-echo '</table>';
 ?>
+
+<?php do_action( 'wcs_gifting_email_order_details', $order, $sent_to_admin, $plain_text, $email ); ?>
 
 <?php do_action( 'woocommerce_email_order_meta', $order, $sent_to_admin, $plain_text, $email ); ?>
 

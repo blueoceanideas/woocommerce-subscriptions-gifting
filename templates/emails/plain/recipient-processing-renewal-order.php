@@ -13,19 +13,9 @@ if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) 
 	WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
 }
 
-$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
+do_action( 'wcs_gifting_email_order_details', $order, $sent_to_admin, $plain_text, $email );
 
-foreach ( $subscriptions as $subscription ) {
-	echo sprintf( __( 'Subscription #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $subscription->get_order_number() ) ) . "\n";
-	echo "\n" . WC_Subscriptions_Email::email_order_items_table( $subscription, array(
-		'show_download_links' => true,
-		'show_sku'            => false,
-		'show_purchase_note'  => true,
-		'show_image'          => '',
-		'image_size'          => '',
-		'plain_text'          => true,
-	) );
-}
+$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
 
 echo "\n";
 
