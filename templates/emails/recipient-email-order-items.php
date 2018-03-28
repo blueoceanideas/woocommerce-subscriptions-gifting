@@ -11,7 +11,7 @@ foreach ( $items as $item_id => $item ) :
 	if ( apply_filters( 'woocommerce_order_item_visible', true, $item ) ) {
 		?>
 		<tr class="<?php echo esc_attr( apply_filters( 'woocommerce_order_item_class', 'order_item', $item, $order ) ); ?>">
-			<td class="td" style="text-align:<?php sprintf( __( '%s', 'woocommerce-subscriptions-gifting' ), $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap:break-word;"><?php
+			<td class="td" style="text-align:<?php echo wp_kses_post( $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap:break-word;"><?php
 
 			// Show title/image etc
 			if ( $show_image ) {
@@ -35,14 +35,14 @@ foreach ( $items as $item_id => $item ) :
 			do_action( 'woocommerce_order_item_meta_end', $item_id, $item, $order, $plain_text );
 
 			?></td>
-			<td class="td" style="text-align:<?php sprintf( __( '%s', 'woocommerce-subscriptions-gifting' ), $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;"><?php echo wp_kses_post( apply_filters( 'woocommerce_email_order_item_quantity', $item->get_quantity(), $item ) ); ?></td>
+			<td class="td" style="text-align:<?php echo wp_kses_post( $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;"><?php echo wp_kses_post( apply_filters( 'woocommerce_email_order_item_quantity', $item->get_quantity(), $item ) ); ?></td>
 		</tr>
 		<?php
 	}
 
 	if ( $show_purchase_note && is_object( $product ) && ( $purchase_note = $product->get_purchase_note() ) ) : ?>
 		<tr>
-			<td colspan="3" style="text-align:<?php sprintf( __( '%s', 'woocommerce-subscriptions-gifting' ), $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;"><?php echo wp_kses_post( wpautop( do_shortcode( $purchase_note ) ) ); ?></td>
+			<td colspan="3" style="text-align:<?php echo wp_kses_post( $text_align ); ?>; vertical-align:middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;"><?php echo wp_kses_post( wpautop( do_shortcode( $purchase_note ) ) ); ?></td>
 		</tr>
 	<?php endif; ?>
 
