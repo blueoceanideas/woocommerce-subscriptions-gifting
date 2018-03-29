@@ -14,4 +14,4 @@ echo "\n";
 
 echo wp_kses_post( WCSG_Email::recipient_email_order_items_table( $order, $order_items_table_args ) );
 
-echo "----------\n\n";
+echo "----------\n";
