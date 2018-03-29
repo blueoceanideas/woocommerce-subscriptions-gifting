@@ -66,9 +66,18 @@ if ( 'true' == $new_recipient ) : ?>
 				echo wp_kses_post( wcs_price_string( $subscription_details ) );?>
 			</td>
 		</tr>
-	<?php endforeach; ?>
-</tbody>
+	</tbody>
 </table>
+<table>
+	<tbody>
+		<?php if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) { ?>
+		<tr>
+			<td style="padding: 0" colspan="3"><p><?php WC_Subscriptions_Email::order_download_details( $subscription, $sent_to_admin, $plain_text, $email ); ?></p></td>
+		</tr>
+		<?php } ?>
+	</tbody>
+</table>
+	<?php endforeach; ?>
 <?php endif; ?>
 
 <?php do_action( 'woocommerce_email_footer', $email ); ?>

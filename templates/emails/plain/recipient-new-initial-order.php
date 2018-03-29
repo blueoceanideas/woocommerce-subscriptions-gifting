@@ -41,6 +41,10 @@ foreach ( $subscriptions as $subscription_id ) {
 	$subscription_details = apply_filters( 'woocommerce_subscription_price_string_details', $subscription_details, $subscription );
 	echo sprintf( __( 'Period: %s', 'woocommerce-subscriptions-gifting' ), wp_kses_post( wcs_price_string( $subscription_details ) ) ) . "\n";
 
+	if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) {
+		WC_Subscriptions_Email::order_download_details( $subscription, $sent_to_admin, $plain_text, $email );
+	}
+
 	echo "----------\n\n";
 }
 
