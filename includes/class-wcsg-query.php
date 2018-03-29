@@ -67,10 +67,27 @@ class WCSG_Query extends WCS_Query {
 
 	/* Function Overrides */
 
+	/**
+	* This function is attached to the 'woocommerce_account_menu_items' filter by the @see parent::__construct().
+	* In this context there is no menu items to add so this function is simply overriding the parent instance to avoid it from being called twice.
+	*
+	 * @param array $menu_items The My Account menu items.
+	 * @deprecated 2.0.0 Because parent::__construct() is no longer called, this function is no longer attached to any filters, no longer called and so no longer needs to be overridden.
+	 */
 	public function add_menu_items( $menu_items ) {
+		_deprecated_function( __METHOD__, '2.0' );
 		return $menu_items;
 	}
 
-	public function endpoint_content() {}
+	/**
+	 * This function is attached to the 'woocommerce_account_subscriptions_endpoint' action hook by the @see parent::__construct().
+	 * In this context there is no subscriptions endpoint content so this function is simply overriding the parent instance to avoid it from being called twice.
+	 *
+	 * @param int $current_page
+	 * @deprecated 2.0.0 Because parent::__construct() is no longer called, this function is no longer attached to any hooks, no longer called and so no longer needs to be overridden.
+	 */
+	public function endpoint_content( $current_page = 1 ) {
+		_deprecated_function( __METHOD__, '2.0' );
+	}
 }
 new WCSG_Query();
