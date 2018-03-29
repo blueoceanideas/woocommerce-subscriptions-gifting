@@ -35,11 +35,8 @@ class WCSG_Email {
 	 * Setup hooks & filters, when the class is initialised.
 	 */
 	public static function init() {
-
 		add_filter( 'woocommerce_email_classes', __CLASS__ . '::add_new_recipient_customer_email', 11, 1 );
-
 		add_action( 'woocommerce_init', __CLASS__ . '::hook_email' );
-
 		add_action( 'wcs_gifting_email_order_details', array( __CLASS__, 'order_details' ), 10, 4 );
 	}
 
