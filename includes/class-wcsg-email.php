@@ -327,6 +327,12 @@ class WCSG_Email {
 	public static function order_details( $order, $sent_to_admin = false, $plain_text = false, $email = '' ) {
 		$template_path = ( $plain_text ) ? 'emails/plain/recipient-email-order-details.php' : 'emails/recipient-email-order-details.php';
 
+		if ( wcs_is_subscription( $order ) ) {
+			$title = sprintf( _x( 'Subscription #%s', 'Used in email heading before line items table, placeholder is subscription ID', 'woocommerce-subscriptions-gifting' ), $order->get_order_number() );
+		} else {
+			$title = sprintf( _x( 'Order #%s', 'Used in email heading before line items table, placeholder is order ID', 'woocommerce-subscriptions-gifting' ), $order->get_order_number() );
+		}
+
 		wc_get_template(
 			$template_path,
 			array(
@@ -334,6 +340,7 @@ class WCSG_Email {
 				'sent_to_admin' => $sent_to_admin,
 				'plain_text'    => $plain_text,
 				'email'         => $email,
+				'title'         => $title,
 			),
 			'',
 			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'

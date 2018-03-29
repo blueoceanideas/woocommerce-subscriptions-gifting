@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
 ?>
-<h2><?php printf( esc_html__( 'Order #%s', 'woocommerce-subscriptions-gifting' ), esc_attr( $order->get_order_number() ) ) ?></h2>
+<h2><?php echo esc_html( $title ) ?></h2>
 <table cellspacing="0" cellpadding="6" style="margin: 0 0 18px; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
 	<thead>
 		<tr>
