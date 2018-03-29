@@ -1,39 +1,30 @@
 <?php
-/**
- * Recipient new subscription(s) notification email
- *
- * @author James Allan
- */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
-
 ?>
+
+<?php $subscriptions = wcs_get_subscriptions_for_renewal_order( $order ); ?>
 
 <?php do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 
-<p><?php printf( esc_html__( 'Hi there,', 'woocommerce-subscriptions-gifting' ) ); ?></p>
-<p><?php printf( esc_html__( '%1$s just purchased %2$s for you at %3$s.', 'woocommerce-subscriptions-gifting' ), wp_kses( $subscription_purchaser, wp_kses_allowed_html( 'user_description' ) ), esc_html( _n( 'a subscription', 'subscriptions', count( $subscriptions ), 'woocommerce-subscriptions-gifting' ) ), esc_html( $blogname ) ); ?>
-<?php printf( esc_html__( ' Details of the %s are shown below.', 'woocommerce-subscriptions-gifting' ), esc_html( _n( 'subscription', 'subscriptions', count( $subscriptions ), 'woocommerce-subscriptions-gifting' ) ) ); ?>
+<p>
+	<?php
+	// translators: placeholder is the name of the site
+	printf( esc_html__( 'Hi there. Your subscription renewal order with %s has been completed. Your order details are shown below for your reference:', 'woocommerce-subscriptions-gifting' ), esc_html( get_option( 'blogname' ) ) );
+	?>
 </p>
+
 <?php
+if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) {
+	WC_Subscriptions_Email::order_download_details( $order, $sent_to_admin, $plain_text, $email );
+}
+?>
 
-$new_recipient = get_user_meta( $recipient_user->ID, 'wcsg_update_account', true );
+<?php do_action( 'wcs_gifting_email_order_details', $order, $sent_to_admin, $plain_text, $email ); ?>
 
-if ( 'true' == $new_recipient ) : ?>
-
-<p><?php esc_html_e( 'We noticed you didn\'t have an account so we created one for you. Your account login details will have been sent to you in a separate email.', 'woocommerce-subscriptions-gifting' ); ?></p>
-
-<?php else : ?>
-
-<p><?php printf( esc_html__( 'You may access your account area to view your new %1$s here: %2$sMy Account%3$s.', 'woocommerce-subscriptions-gifting' ),
-	esc_html( _n( 'subscription', 'subscriptions', count( $subscriptions ), 'woocommerce-subscriptions-gifting' ) ),
-	'<a href="' . esc_url( wc_get_page_permalink( 'myaccount' ) ) . '">',
-	'</a>'
-); ?></p>
-
-<?php endif; ?>
+<?php do_action( 'woocommerce_email_order_meta', $order, $sent_to_admin, $plain_text, $email ); ?>
 
 <?php if ( ! empty( $subscriptions ) ) : ?>
 <h2><?php esc_html_e( 'Subscription Information:', 'woocommerce-subscriptions-gifting' ); ?></h2>
@@ -47,8 +38,7 @@ if ( 'true' == $new_recipient ) : ?>
 		</tr>
 	</thead>
 	<tbody>
-	<?php foreach ( $subscriptions as $subscription_id ) : ?>
-		<?php $subscription = wcs_get_subscription( $subscription_id ); ?>
+	<?php foreach ( $subscriptions as $subscription ) : ?>
 		<tr>
 			<td class="td" scope="row" style="text-align:left;"><a href="<?php echo esc_url( $subscription->get_view_order_url() ); ?>"><?php echo sprintf( esc_html_x( '#%s', 'subscription number in email table. (eg: #106)', 'woocommerce-subscriptions-gifting' ), esc_html( $subscription->get_order_number() ) ); ?></a></td>
 			<td class="td" scope="row" style="text-align:left;"><?php echo esc_html( date_i18n( wc_date_format(), $subscription->get_time( 'date_created', 'site' ) ) ); ?></td>
@@ -66,18 +56,21 @@ if ( 'true' == $new_recipient ) : ?>
 				echo wp_kses_post( wcs_price_string( $subscription_details ) );?>
 			</td>
 		</tr>
-	</tbody>
-</table>
-<table>
-	<tbody>
-		<?php if ( is_callable( array( 'WC_Subscriptions_Email', 'order_download_details' ) ) ) { ?>
-		<tr>
-			<td style="padding: 0" colspan="3"><p><?php WC_Subscriptions_Email::order_download_details( $subscription, $sent_to_admin, $plain_text, $email ); ?></p></td>
-		</tr>
-		<?php } ?>
-	</tbody>
-</table>
 	<?php endforeach; ?>
+</tbody>
+</table>
 <?php endif; ?>
+
+<table id="addresses" cellspacing="0" cellpadding="0" style="width: 100%; vertical-align: top; margin-bottom: 40px; padding:0;" border="0">
+	<tr>
+		<?php if ( ! wc_ship_to_billing_address_only() && $order->needs_shipping_address() && ( $shipping = $order->get_formatted_shipping_address() ) ) : ?>
+			<td style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; padding:0;" valign="top" width="50%">
+				<h2><?php echo esc_html__( 'Shipping address', 'woocommerce-subscriptions-gifting' ); ?></h2>
+
+				<address class="address"><?php echo wp_kses_post( $shipping ); ?></address>
+			</td>
+		<?php endif; ?>
+	</tr>
+</table>
 
 <?php do_action( 'woocommerce_email_footer', $email ); ?>
