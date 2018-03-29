@@ -38,6 +38,8 @@ class WCSG_Email {
 		add_filter( 'woocommerce_email_classes', __CLASS__ . '::add_new_recipient_customer_email', 11, 1 );
 		add_action( 'woocommerce_init', __CLASS__ . '::hook_email' );
 		add_action( 'wcs_gifting_email_order_details', array( __CLASS__, 'order_details' ), 10, 4 );
+		add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'get_related_subscriptions_table' ), 10, 3 );
+		add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'get_address_table' ), 11, 3 );
 	}
 
 	/**
@@ -327,6 +329,48 @@ class WCSG_Email {
 				'email'                  => $email,
 				'order_items_table_args' => $order_items_table_args,
 			),
+			'',
+			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+		);
+	}
+
+	/**
+	 * Get the related subscription details table for emails sent to recipients.
+	 *
+	 * @param WC_Order $order     The order object the email be sent relates to.
+	 * @param bool $sent_to_admin Whether the email is sent to admin users.
+	 * @param bool $plain_text    Whether the email template is plain text or HTML.
+	 * @since 2.0.0
+	 */
+	public static function get_related_subscriptions_table( $order, $sent_to_admin, $plain_text ) {
+		$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
+		$template      = ( $plain_text ) ? 'emails/plain/recipient-email-subscriptions-table.php' : 'emails/recipient-email-subscriptions-table.php';
+
+		// Only display the table if there are related subscriptions.
+		if ( ! empty( $subscriptions ) ) {
+			wc_get_template(
+				$template,
+				array( 'subscriptions' => $subscriptions ),
+				'',
+				plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+			);
+		}
+	}
+
+	/**
+	 * Get the order's address details table for emails sent to recipients.
+	 *
+	 * @param WC_Order $order     The order object the email be sent relates to.
+	 * @param bool $sent_to_admin Whether the email is sent to admin users.
+	 * @param bool $plain_text    Whether the email template is plain text.
+	 * @since 2.0.0
+	 */
+	public static function get_address_table( $order, $sent_to_admin, $plain_text ) {
+		$template = ( $plain_text ) ? 'emails/plain/recipient-email-address-table.php' : 'emails/recipient-email-address-table.php';
+
+		wc_get_template(
+			$template,
+			array( 'order' => $order ),
 			'',
 			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
 		);
