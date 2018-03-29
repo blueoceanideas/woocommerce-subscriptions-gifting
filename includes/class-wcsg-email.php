@@ -291,9 +291,28 @@ class WCSG_Email {
 	* @since 2.0.0
 	*/
 	public static function recipient_email_order_items_table( $order, $args ) {
+		$defaults = array(
+			'show_sku'      => false,
+			'show_image'    => false,
+			'image_size'    => array( 32, 32 ),
+			'plain_text'    => false,
+			'sent_to_admin' => false,
+		);
+
+		$args     = wp_parse_args( $args, $defaults );
 		$template = $args['plain_text'] ? 'emails/plain/recipient-email-order-items.php' : 'emails/recipient-email-order-items.php';
 
-		wc_get_template( $template, $args, '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
+		wc_get_template( $template, array(
+			'order'               => $order,
+			'items'               => $order->get_items(),
+			'show_download_links' => $order->is_download_permitted() && ! $args['sent_to_admin'],
+			'show_sku'            => $args['show_sku'],
+			'show_purchase_note'  => $order->is_paid() && ! $args['sent_to_admin'],
+			'show_image'          => $args['show_image'],
+			'image_size'          => $args['image_size'],
+			'plain_text'          => $args['plain_text'],
+			'sent_to_admin'       => $args['sent_to_admin'],
+		), '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
 	}
 
 	/**
@@ -306,28 +325,15 @@ class WCSG_Email {
 	 * @since 2.0.0
 	 */
 	public static function order_details( $order, $sent_to_admin = false, $plain_text = false, $email = '' ) {
-
-		$order_items_table_args = array(
-			'order'               => $order,
-			'items'               => $order->get_items(),
-			'show_download_links' => ( $sent_to_admin ) ? false : $order->is_download_permitted(),
-			'show_sku'            => $sent_to_admin,
-			'show_purchase_note'  => false,
-			'show_image'          => '',
-			'image_size'          => '',
-			'plain_text'          => $plain_text,
-		);
-
 		$template_path = ( $plain_text ) ? 'emails/plain/recipient-email-order-details.php' : 'emails/recipient-email-order-details.php';
 
 		wc_get_template(
 			$template_path,
 			array(
-				'order'                  => $order,
-				'sent_to_admin'          => $sent_to_admin,
-				'plain_text'             => $plain_text,
-				'email'                  => $email,
-				'order_items_table_args' => $order_items_table_args,
+				'order'         => $order,
+				'sent_to_admin' => $sent_to_admin,
+				'plain_text'    => $plain_text,
+				'email'         => $email,
 			),
 			'',
 			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'

@@ -13,6 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</tr>
 	</thead>
 	<tbody>
-		<?php echo wp_kses_post( WCSG_Email::recipient_email_order_items_table( $order, $order_items_table_args ) ); ?>
+		<?php echo wp_kses_post( WCSG_Email::recipient_email_order_items_table( $order, array(
+			'show_sku'            => $sent_to_admin,
+			'show_image'          => '',
+			'image_size'          => '',
+			'plain_text'          => $plain_text,
+			'sent_to_admin'       => $sent_to_admin,
+		) ) ); ?>
 	</tbody>
 </table>

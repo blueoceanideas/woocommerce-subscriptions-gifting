@@ -12,6 +12,12 @@ echo sprintf( __( 'Order date: %s', 'woocommerce-subscriptions' ), wcs_format_da
 
 echo "\n";
 
-echo wp_kses_post( WCSG_Email::recipient_email_order_items_table( $order, $order_items_table_args ) );
+echo wp_kses_post( WCSG_Email::recipient_email_order_items_table( $order, array(
+	'show_sku'            => $sent_to_admin,
+	'show_image'          => '',
+	'image_size'          => '',
+	'plain_text'          => $plain_text,
+	'sent_to_admin'       => $sent_to_admin,
+) ) );
 
 echo "----------\n";
