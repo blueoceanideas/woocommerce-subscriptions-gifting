@@ -320,7 +320,6 @@ class WCSG_Email {
 		);
 
 		$template_path = ( $plain_text ) ? 'emails/plain/recipient-email-order-details.php' : 'emails/recipient-email-order-details.php';
-		$order_type    = ( wcs_is_subscription( $order ) ) ? 'subscription' : 'order';
 
 		wc_get_template(
 			$template_path,
