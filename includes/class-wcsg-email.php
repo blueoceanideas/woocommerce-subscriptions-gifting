@@ -35,12 +35,11 @@ class WCSG_Email {
 	 * Setup hooks & filters, when the class is initialised.
 	 */
 	public static function init() {
-
 		add_filter( 'woocommerce_email_classes', __CLASS__ . '::add_new_recipient_customer_email', 11, 1 );
-
 		add_action( 'woocommerce_init', __CLASS__ . '::hook_email' );
-
 		add_action( 'wcs_gifting_email_order_details', array( __CLASS__, 'order_details' ), 10, 4 );
+		add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'get_related_subscriptions_table' ), 10, 3 );
+		add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'get_address_table' ), 11, 3 );
 	}
 
 	/**
@@ -292,9 +291,28 @@ class WCSG_Email {
 	* @since 2.0.0
 	*/
 	public static function recipient_email_order_items_table( $order, $args ) {
+		$defaults = array(
+			'show_sku'      => false,
+			'show_image'    => false,
+			'image_size'    => array( 32, 32 ),
+			'plain_text'    => false,
+			'sent_to_admin' => false,
+		);
+
+		$args     = wp_parse_args( $args, $defaults );
 		$template = $args['plain_text'] ? 'emails/plain/recipient-email-order-items.php' : 'emails/recipient-email-order-items.php';
 
-		wc_get_template( $template, $args, '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
+		wc_get_template( $template, array(
+			'order'               => $order,
+			'items'               => $order->get_items(),
+			'show_download_links' => $order->is_download_permitted() && ! $args['sent_to_admin'],
+			'show_sku'            => $args['show_sku'],
+			'show_purchase_note'  => $order->is_paid() && ! $args['sent_to_admin'],
+			'show_image'          => $args['show_image'],
+			'image_size'          => $args['image_size'],
+			'plain_text'          => $args['plain_text'],
+			'sent_to_admin'       => $args['sent_to_admin'],
+		), '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
 	}
 
 	/**
@@ -307,30 +325,65 @@ class WCSG_Email {
 	 * @since 2.0.0
 	 */
 	public static function order_details( $order, $sent_to_admin = false, $plain_text = false, $email = '' ) {
-
-		$order_items_table_args = array(
-			'order'               => $order,
-			'items'               => $order->get_items(),
-			'show_download_links' => ( $sent_to_admin ) ? false : $order->is_download_permitted(),
-			'show_sku'            => $sent_to_admin,
-			'show_purchase_note'  => false,
-			'show_image'          => '',
-			'image_size'          => '',
-			'plain_text'          => $plain_text,
-		);
-
 		$template_path = ( $plain_text ) ? 'emails/plain/recipient-email-order-details.php' : 'emails/recipient-email-order-details.php';
-		$order_type    = ( wcs_is_subscription( $order ) ) ? 'subscription' : 'order';
+
+		if ( wcs_is_subscription( $order ) ) {
+			$title = sprintf( _x( 'Subscription #%s', 'Used in email heading before line items table, placeholder is subscription ID', 'woocommerce-subscriptions-gifting' ), $order->get_order_number() );
+		} else {
+			$title = sprintf( _x( 'Order #%s', 'Used in email heading before line items table, placeholder is order ID', 'woocommerce-subscriptions-gifting' ), $order->get_order_number() );
+		}
 
 		wc_get_template(
 			$template_path,
 			array(
-				'order'                  => $order,
-				'sent_to_admin'          => $sent_to_admin,
-				'plain_text'             => $plain_text,
-				'email'                  => $email,
-				'order_items_table_args' => $order_items_table_args,
+				'order'         => $order,
+				'sent_to_admin' => $sent_to_admin,
+				'plain_text'    => $plain_text,
+				'email'         => $email,
+				'title'         => $title,
 			),
+			'',
+			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+		);
+	}
+
+	/**
+	 * Get the related subscription details table for emails sent to recipients.
+	 *
+	 * @param WC_Order $order     The order object the email be sent relates to.
+	 * @param bool $sent_to_admin Whether the email is sent to admin users.
+	 * @param bool $plain_text    Whether the email template is plain text or HTML.
+	 * @since 2.0.0
+	 */
+	public static function get_related_subscriptions_table( $order, $sent_to_admin, $plain_text ) {
+		$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
+		$template      = ( $plain_text ) ? 'emails/plain/recipient-email-subscriptions-table.php' : 'emails/recipient-email-subscriptions-table.php';
+
+		// Only display the table if there are related subscriptions.
+		if ( ! empty( $subscriptions ) ) {
+			wc_get_template(
+				$template,
+				array( 'subscriptions' => $subscriptions ),
+				'',
+				plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+			);
+		}
+	}
+
+	/**
+	 * Get the order's address details table for emails sent to recipients.
+	 *
+	 * @param WC_Order $order     The order object the email be sent relates to.
+	 * @param bool $sent_to_admin Whether the email is sent to admin users.
+	 * @param bool $plain_text    Whether the email template is plain text.
+	 * @since 2.0.0
+	 */
+	public static function get_address_table( $order, $sent_to_admin, $plain_text ) {
+		$template = ( $plain_text ) ? 'emails/plain/recipient-email-address-table.php' : 'emails/recipient-email-address-table.php';
+
+		wc_get_template(
+			$template,
+			array( 'order' => $order ),
 			'',
 			plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
 		);
