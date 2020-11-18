@@ -1,4 +1,17 @@
 <?php
+/**
+ * Recipient management.
+ *
+ * @package WooCommerce Subscriptions Gifting
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
+/**
+ * Recipient management class.
+ */
 class WCSG_Recipient_Management {
 
 	/**
@@ -7,24 +20,24 @@ class WCSG_Recipient_Management {
 	public static function init() {
 		add_filter( 'wcs_get_users_subscriptions', __CLASS__ . '::get_users_subscriptions', 1, 2 );
 
-		add_action( 'woocommerce_order_details_after_customer_details', __CLASS__ . '::gifting_information_after_customer_details', 1 );
+		add_action( 'woocommerce_subscription_details_after_subscription_table', array( __CLASS__, 'gifting_information_after_customer_details' ), 1 );
 
 		add_filter( 'wcs_view_subscription_actions', __CLASS__ . '::add_recipient_actions', 11, 2 );
 
-		//we want to handle the changing of subscription status before Subscriptions core
+		// We want to handle the changing of subscription status before Subscriptions core.
 		add_action( 'init', __CLASS__ . '::change_user_recipient_subscription', 99 );
 
-		add_filter( 'wcs_can_user_put_subscription_on_hold' , __CLASS__ . '::recipient_can_suspend', 1, 2 );
+		add_filter( 'wcs_can_user_put_subscription_on_hold', __CLASS__ . '::recipient_can_suspend', 1, 2 );
 
-		add_filter( 'woocommerce_subscription_related_orders', __CLASS__ . '::maybe_remove_parent_order', 11, 4 );
+		if ( ! is_admin() ) {
+			add_filter( 'woocommerce_subscription_related_orders', array( __CLASS__, 'maybe_remove_parent_order' ), 11, 2 );
+		}
 
 		add_filter( 'user_has_cap', __CLASS__ . '::grant_recipient_capabilities', 20, 3 );
 
 		add_action( 'delete_user_form', __CLASS__ . '::maybe_display_delete_recipient_warning', 10 );
 
 		add_action( 'delete_user', __CLASS__ . '::maybe_remove_recipient', 10, 1 );
-
-		add_action( 'woocommerce_add_order_item_meta', __CLASS__ . '::maybe_add_recipient_order_item_meta', 10, 2 );
 
 		add_filter( 'woocommerce_attribute_label', __CLASS__ . '::format_recipient_meta_label', 10, 2 );
 
@@ -35,38 +48,49 @@ class WCSG_Recipient_Management {
 		add_action( 'woocommerce_before_order_itemmeta', __CLASS__ . '::display_recipient_meta_admin', 10, 1 );
 
 		add_action( 'woocommerce_subscription_status_updated', __CLASS__ . '::maybe_update_recipient_role', 10, 2 );
+
+		if ( wcsg_is_woocommerce_pre( '3.0' ) ) {
+			add_action( 'woocommerce_add_order_item_meta', __CLASS__ . '::maybe_add_recipient_order_item_meta', 10, 2 );
+		} else {
+			add_action( 'woocommerce_checkout_create_order_line_item', __CLASS__ . '::add_order_item_meta', 10, 3 );
+		}
+
+		add_action( 'woocommerce_customer_reset_password', array( __CLASS__, 'maybe_add_recipient_reset_password_flag' ) );
+
+		// Disable early renewal via modal for recipients.
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_disable_early_renewal_modal_for_recipient' ), 100 );
 	}
 
 	/**
 	 * Grant capabilities for subscriptions and related orders to recipients
 	 *
-	 * @param array $allcaps An array of user capabilities
-	 * @param array $caps The capability being questioned
-	 * @param array $args Additional arguments related to the capability
+	 * @param array $allcaps An array of user capabilities.
+	 * @param array $caps    The capability being questioned.
+	 * @param array $args    Additional arguments related to the capability.
 	 * @return array
 	 */
 	public static function grant_recipient_capabilities( $allcaps, $caps, $args ) {
 		if ( isset( $caps[0] ) ) {
 			switch ( $caps[0] ) {
-				case 'view_order' :
+				case 'view_order':
 					$user_id = $args[1];
 					$order   = wc_get_order( $args[2] );
 
 					if ( $order ) {
-						if ( 'shop_subscription' == get_post_type( $args[2] ) && $user_id == $order->recipient_user ) {
+						if ( 'shop_subscription' == get_post_type( $args[2] ) && WCS_Gifting::get_recipient_user( $order ) == $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 							$allcaps['view_order'] = true;
-						} else if ( wcs_order_contains_renewal( $order ) ) {
+						} elseif ( wcs_order_contains_renewal( $order ) ) {
 							$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
 							foreach ( $subscriptions as $subscription ) {
-								if ( $user_id == $subscription->recipient_user ) {
+								if ( WCS_Gifting::get_recipient_user( $subscription ) == $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 									$allcaps['view_order'] = true;
 									break;
 								}
 							}
 						}
 					}
-				break;
-				case 'pay_for_order' :
+					break;
+				case 'pay_for_order':
 					$user_id = $args[1];
 					$order   = wc_get_order( $args[2] );
 
@@ -74,13 +98,27 @@ class WCSG_Recipient_Management {
 						$subscriptions = wcs_get_subscriptions_for_renewal_order( $order );
 
 						foreach ( $subscriptions as $subscription ) {
-							if ( $user_id == $subscription->recipient_user ) {
+							if ( WCS_Gifting::get_recipient_user( $subscription ) == $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 								$allcaps['pay_for_order'] = true;
 								break;
 							}
 						}
 					}
-				break;
+					break;
+				case 'subscribe_again':
+					// subscribe_again is the capability used to enable resubscription. Recipients cannot resubscribe (@see https://docs.woocommerce.com/document/subscriptions-gifting/#section-13) and so we only want to enable this function for early renewals.
+					if ( ! isset( $_GET['subscription_renewal_early'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+						break;
+					}
+
+					$user_id      = $args[1];
+					$subscription = wcs_get_subscription( $args[2] );
+
+					if ( WCS_Gifting::is_gifted_subscription( $subscription ) && (int) WCS_Gifting::get_recipient_user( $subscription ) === $user_id ) {
+						$allcaps['subscribe_again'] = true;
+					}
+					break;
+
 			}
 		}
 		return $allcaps;
@@ -89,57 +127,89 @@ class WCSG_Recipient_Management {
 	/**
 	 * Adds available user actions to the subscription recipient
 	 *
-	 * @param array|actions An array of actions the user can peform
-	 * @param object|subscription
-	 * @return array|actions An updated array of actions the user can perform on a gifted subscription
+	 * @param array  $actions      An array of actions the user can peform.
+	 * @param object $subscription Subscription object.
+	 * @return array An updated array of actions the user can perform on a gifted subscription.
 	 */
 	public static function add_recipient_actions( $actions, $subscription ) {
 
-		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && wp_get_current_user()->ID == $subscription->recipient_user ) {
-
+		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 			$recipient_actions = array();
 			$current_status    = $subscription->get_status();
-			$recipient_user    = get_user_by( 'id', $subscription->recipient_user );
+			$recipient_user    = wp_get_current_user();
+			$subscription_id   = wcsg_get_objects_id( $subscription );
 
 			$admin_with_suspension_disallowed = ( current_user_can( 'manage_woocommerce' ) && '0' === get_option( WC_Subscriptions_Admin::$option_prefix . '_max_customer_suspensions', '0' ) ) ? true : false;
 
 			if ( $subscription->can_be_updated_to( 'on-hold' ) && wcs_can_user_put_subscription_on_hold( $subscription, $recipient_user ) && ! $admin_with_suspension_disallowed ) {
 				$recipient_actions['suspend'] = array(
-					'url'  => self::get_recipient_change_status_link( $subscription->id, 'on-hold', $recipient_user->ID, $current_status ),
+					'url'  => self::get_recipient_change_status_link( $subscription_id, 'on-hold', $recipient_user->ID, $current_status ),
 					'name' => __( 'Suspend', 'woocommerce-subscriptions-gifting' ),
 				);
-			} else if ( $subscription->can_be_updated_to( 'active' ) && ! $subscription->needs_payment() ) {
+			} elseif ( $subscription->can_be_updated_to( 'active' ) && ! $subscription->needs_payment() ) {
 				$recipient_actions['reactivate'] = array(
-					'url'  => self::get_recipient_change_status_link( $subscription->id, 'active', $recipient_user->ID, $current_status ),
+					'url'  => self::get_recipient_change_status_link( $subscription_id, 'active', $recipient_user->ID, $current_status ),
 					'name' => __( 'Reactivate', 'woocommerce-subscriptions-gifting' ),
 				);
 			}
 
 			if ( $subscription->can_be_updated_to( 'cancelled' ) ) {
 				$recipient_actions['cancel'] = array(
-					'url'  => self::get_recipient_change_status_link( $subscription->id, 'cancelled', $recipient_user->ID, $current_status ),
+					'url'  => self::get_recipient_change_status_link( $subscription_id, 'cancelled', $recipient_user->ID, $current_status ),
 					'name' => __( 'Cancel', 'woocommerce-subscriptions-gifting' ),
 				);
 			}
 
 			$actions = array_merge( $recipient_actions, $actions );
 
-			//remove the ability for recipients to change the payment method.
+			// Remove the ability for recipients to change the payment method.
 			unset( $actions['change_payment_method'] );
 		}
 		return $actions;
 	}
 
 	/**
+	 * Disables the early renewal modal for recipients. This is to prevent recipients from renewing using the purchaser's
+	 * payment information.
+	 * This is only required when running on WCS < 3.0.5, where being able to renew early implies access to the early renewal modal.
+	 *
+	 * @since 2.1.1
+	 */
+	public static function maybe_disable_early_renewal_modal_for_recipient() {
+		if ( ! wcsg_is_wc_subscriptions_pre( '3.0.5' ) ) {
+			return;
+		}
+
+		if ( ! wcs_is_view_subscription_page() || ! isset( $GLOBALS['wp']->query_vars['view-subscription'] ) ) {
+			return;
+		}
+
+		$subscription = wcs_get_subscription( absint( $GLOBALS['wp']->query_vars['view-subscription'] ) );
+		if ( ! $subscription || ! WCS_Gifting::is_gifted_subscription( $subscription ) || get_current_user_id() === $subscription->get_user_id() ) {
+			return;
+		}
+
+		$callback = array( 'WCS_Early_Renewal_Modal_Handler', 'maybe_print_early_renewal_modal' );
+		remove_action( 'woocommerce_subscription_details_table', $callback, has_action( 'woocommerce_subscription_details_table', $callback ) );
+	}
+
+	/**
 	 * Generates a link for the user to change the status of a subscription
 	 *
-	 * @param int|subscription_id
-	 * @param string|status The status the recipient has requested to change the subscription to
-	 * @param int|recipient_id
+	 * @param int    $subscription_id Subscription ID.
+	 * @param string $status          The status the recipient has requested to change the subscription to.
+	 * @param int    $recipient_id    Recipient ID.
+	 * @param string $current_status  Current status.
 	 */
 	private static function get_recipient_change_status_link( $subscription_id, $status, $recipient_id, $current_status ) {
 
-		$action_link = add_query_arg( array( 'subscription_id' => $subscription_id, 'change_subscription_to' => $status, 'wcsg_requesting_recipient_id' => $recipient_id ) );
+		$action_link = add_query_arg(
+			array(
+				'subscription_id'              => $subscription_id,
+				'change_subscription_to'       => $status,
+				'wcsg_requesting_recipient_id' => $recipient_id,
+			)
+		);
 		$action_link = wp_nonce_url( $action_link, $subscription_id . $current_status );
 
 		return $action_link;
@@ -150,34 +220,37 @@ class WCSG_Recipient_Management {
 	 * validate the request and proceed to change to the subscription.
 	 */
 	public static function change_user_recipient_subscription() {
-		//check if the request is being made from the recipient (wcsg_requesting_recipient_id is set)
-		if ( isset( $_GET['wcsg_requesting_recipient_id'] ) && isset( $_GET['change_subscription_to'] ) && isset( $_GET['subscription_id'] ) && isset( $_GET['_wpnonce'] ) ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		// Check if the request is being made from the recipient (wcsg_requesting_recipient_id is set).
+		if ( isset( $_GET['wcsg_requesting_recipient_id'] ) && isset( $_GET['change_subscription_to'] ) && isset( $_GET['subscription_id'] ) && ! empty( $_GET['_wpnonce'] ) ) {
 
 			remove_action( 'init', 'WCS_User_Change_Status_Handler::maybe_change_users_subscription', 100 );
 
-			$subscription = wcs_get_subscription( $_GET['subscription_id'] );
+			$subscription = wcs_get_subscription( absint( $_GET['subscription_id'] ) );
 			$user_id      = $subscription->get_user_id();
-			$new_status   = $_GET['change_subscription_to'];
+			$new_status   = $_GET['change_subscription_to']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 
-			if ( WCS_User_Change_Status_Handler::validate_request( $user_id, $subscription, $new_status, $_GET['_wpnonce'] ) ) {
+			if ( WCS_User_Change_Status_Handler::validate_request( $user_id, $subscription, $new_status, $_GET['_wpnonce'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 				WCS_User_Change_Status_Handler::change_users_subscription( $subscription, $new_status );
 				wp_safe_redirect( $subscription->get_view_order_url() );
 				exit;
 			}
 		}
+		// phpcs:enable
 	}
 
 	/**
 	 * Allows the recipient to suspend a subscription, provided the suspension count hasnt been reached
 	 *
-	 * @param bool|user_can_suspend Whether the user can suspend a subscription
+	 * @param bool            $user_can_suspend Whether the user can suspend a subscription.
+	 * @param WC_Subscription $subscription     Subscription object.
 	 */
 	public static function recipient_can_suspend( $user_can_suspend, $subscription ) {
 
-		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && wp_get_current_user()->ID == $subscription->recipient_user ) {
+		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 
-			// Make sure subscription suspension count hasn't been reached
-			$suspension_count    = $subscription->suspension_count;
+			// Make sure subscription suspension count hasn't been reached.
+			$suspension_count    = wcsg_get_objects_property( $subscription, 'suspension_count' );
 			$allowed_suspensions = get_option( WC_Subscriptions_Admin::$option_prefix . '_max_customer_suspensions', 0 );
 
 			if ( 'unlimited' === $allowed_suspensions || $allowed_suspensions > $suspension_count ) { // 0 not > anything so prevents a customer ever being able to suspend
@@ -192,12 +265,13 @@ class WCSG_Recipient_Management {
 	/**
 	 * Adds all the subscriptions that have been gifted to a user to their subscriptions
 	 *
-	 * @param array|subscriptions An array of subscriptions assigned to the user
-	 * @return array|subscriptions An updated array of subscriptions with any subscriptions gifted to the user added.
+	 * @param array $subscriptions An array of subscriptions assigned to the user.
+	 * @param int   $user_id       Recipient's user ID.
+	 * @return array An updated array of subscriptions with any subscriptions gifted to the user added.
 	 */
 	public static function get_users_subscriptions( $subscriptions, $user_id ) {
 
-		//get the subscription posts that have been gifted to this user
+		// Get the subscription posts that have been gifted to this user.
 		$recipient_subscriptions = self::get_recipient_subscriptions( $user_id );
 
 		foreach ( $recipient_subscriptions as $subscription_id ) {
@@ -212,19 +286,37 @@ class WCSG_Recipient_Management {
 	}
 
 	/**
-	 * Adds recipient/purchaser information to the view subscription page
+	 * Adds recipient/purchaser information to the view subscription page.
+	 *
+	 * @param WC_Subscription $subscription Subscription object.
 	 */
 	public static function gifting_information_after_customer_details( $subscription ) {
-		//check if the subscription is gifted
+		// check if the subscription is gifted.
 		if ( WCS_Gifting::is_gifted_subscription( $subscription ) ) {
-			$customer_user  = get_user_by( 'id', $subscription->customer_user );
-			$recipient_user = get_user_by( 'id', $subscription->recipient_user );
-			$current_user   = wp_get_current_user();
+			$customer_user_id  = $subscription->get_user_id();
+			$recipient_user_id = WCS_Gifting::get_recipient_user( $subscription );
+			$current_user_id   = get_current_user_id();
 
-			if ( $current_user->ID == $customer_user->ID ) {
-				wc_get_template( 'html-view-subscription-gifting-information.php', array( 'user_title' => 'Recipient', 'name' => WCS_Gifting::get_user_display_name( $subscription->recipient_user ) ), '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
+			if ( $current_user_id == $customer_user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+				wc_get_template(
+					'html-view-subscription-gifting-information.php',
+					array(
+						'user_title' => 'Recipient',
+						'name'       => WCS_Gifting::get_user_display_name( $recipient_user_id ),
+					),
+					'',
+					plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+				);
 			} else {
-				wc_get_template( 'html-view-subscription-gifting-information.php', array( 'user_title' => 'Purchaser', 'name' => WCS_Gifting::get_user_display_name( $subscription->customer_user ) ), '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
+				wc_get_template(
+					'html-view-subscription-gifting-information.php',
+					array(
+						'user_title' => 'Purchaser',
+						'name'       => WCS_Gifting::get_user_display_name( $customer_user_id ),
+					),
+					'',
+					plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/'
+				);
 			}
 		}
 	}
@@ -232,24 +324,28 @@ class WCSG_Recipient_Management {
 	/**
 	 * Gets an array of subscription ids which have been gifted to a user
 	 *
-	 * @param user_id The user id of the recipient
-	 * @param $order_id The Order ID which contains the subscription
-	 * @return array An array of subscriptions gifted to the user
+	 * @param int   $user_id  The user id of the recipient.
+	 * @param int   $order_id The Order ID which contains the subscription.
+	 * @param array $args   Array of arguments.
+	 * @return WP_Post[] An array of subscriptions gifted to the user
 	 */
-	public static function get_recipient_subscriptions( $user_id, $order_id = 0 ) {
-		$args = array(
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
-			'post_type'      => 'shop_subscription',
-			'orderby'        => 'date',
-			'order'          => 'desc',
-			'meta_key'       => '_recipient_user',
-			'meta_value'     => $user_id,
-			'meta_compare'   => '=',
-			'fields'         => 'ids',
+	public static function get_recipient_subscriptions( $user_id, $order_id = 0, $args = array() ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'posts_per_page' => -1,
+				'post_status'    => 'any',
+				'post_type'      => 'shop_subscription',
+				'orderby'        => 'date',
+				'order'          => 'desc',
+				'meta_key'       => '_recipient_user', /* phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key */
+				'meta_value'     => $user_id, /* phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value */
+				'meta_compare'   => '=',
+				'fields'         => 'ids',
+			)
 		);
 
-		if ( 0 != $order_id ) {
+		if ( 0 != $order_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 			$args['post_parent'] = $order_id;
 		}
 		return get_posts( $args );
@@ -258,15 +354,16 @@ class WCSG_Recipient_Management {
 	/**
 	 * Filter the WC_Subscription::get_related_orders() method removing parent orders for recipients.
 	 *
-	 * @param array $related_orders an array of order ids related to the $subscription
-	 * @param WC_Subscription Object $subscription
-	 * @return array $related_orders an array of order ids related to the $subscription
+	 * @param array           $related_orders An array of order ids related to the $subscription.
+	 * @param WC_Subscription $subscription   Subscription object.
+	 * @return array an array of order ids related to the $subscription.
 	 */
 	public static function maybe_remove_parent_order( $related_orders, $subscription ) {
-		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && wp_get_current_user()->ID == $subscription->recipient_user ) {
-			$related_order_ids = array_keys( $related_orders );
-			if ( in_array( $subscription->order->id, $related_order_ids ) ) {
-				unset( $related_orders[ $subscription->order->id ] );
+		if ( WCS_Gifting::is_gifted_subscription( $subscription ) && get_current_user_id() == WCS_Gifting::get_recipient_user( $subscription ) ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+			$parent_order_id = $subscription->get_parent_id();
+
+			if ( isset( $related_orders[ $parent_order_id ] ) ) {
+				unset( $related_orders[ $parent_order_id ] );
 			}
 		}
 		return $related_orders;
@@ -275,42 +372,16 @@ class WCSG_Recipient_Management {
 	/**
 	 * Maybe add recipient information to order item meta for displaying in order item tables.
 	 *
-	 * @param int $item_id
-	 * @param array $cart_item
+	 * @param int   $item_id   The item ID.
+	 * @param array $cart_item The cart's item.
 	 */
 	public static function maybe_add_recipient_order_item_meta( $item_id, $cart_item ) {
-		$recipient_email = '';
+		$recipient_user_id = WCSG_Cart::get_recipient_from_cart_item( $cart_item );
 
-		if ( isset( $cart_item['subscription_renewal'] ) && WCS_Gifting::is_gifted_subscription( $cart_item['subscription_renewal']['subscription_id'] ) ) {
-			$recipient_id    = get_post_meta( $cart_item['subscription_renewal']['subscription_id'], '_recipient_user', true );
-			$recipient       = get_user_by( 'id', $recipient_id );
-			$recipient_email = $recipient->user_email;
-		} else if ( isset( $cart_item['wcsg_gift_recipients_email'] ) ) {
-			$recipient_email = $cart_item['wcsg_gift_recipients_email'];
-		}
-
-		if ( ! empty( $recipient_email ) ) {
-
-			$recipient_user_id = email_exists( $recipient_email );
-
-			if ( empty( $recipient_user_id ) ) {
-				// create a username for the new customer
-				$username  = explode( '@', $recipient_email );
-				$username  = sanitize_user( $username[0], true );
-				$counter   = 1;
-				$original_username = $username;
-				while ( username_exists( $username ) ) {
-					$username = $original_username . $counter;
-					$counter++;
-				}
-				$password = wp_generate_password();
-				$recipient_user_id = wc_create_new_customer( $recipient_email, $username, $password );
-				update_user_meta( $recipient_user_id, 'wcsg_update_account', 'true' );
-			}
-
+		if ( $recipient_user_id ) {
 			wc_update_order_item_meta( $item_id, 'wcsg_recipient', 'wcsg_recipient_id_' . $recipient_user_id );
 
-			// Clear the order item meta cache so all meta is included in emails sent on checkout
+			// Clear the order item meta cache so all meta is included in emails sent on checkout.
 			$cache_key = WC_Cache_Helper::get_cache_prefix( 'orders' ) . 'item_meta_array_' . $item_id;
 			wp_cache_delete( $cache_key, 'orders' );
 		}
@@ -319,12 +390,12 @@ class WCSG_Recipient_Management {
 	/**
 	 * Format the order item meta label to be displayed.
 	 *
-	 * @param string $label The item meta label displayed
-	 * @param string $name The name of the order item meta (key)
+	 * @param string $label The item meta label displayed.
+	 * @param string $name  The name of the order item meta (key).
 	 */
 	public static function format_recipient_meta_label( $label, $name ) {
-		if ( 'wcsg_recipient' == $name || 'wcsg_deleted_recipient_data' == $name ) {
-			$label = 'Recipient';
+		if ( 'wcsg_recipient' === $name || 'wcsg_deleted_recipient_data' === $name ) {
+			$label = __( 'Recipient', 'woocommerce-subscriptions-gifting' );
 		}
 		return $label;
 	}
@@ -332,7 +403,7 @@ class WCSG_Recipient_Management {
 	/**
 	 * Format recipient order item meta value by extracting the recipient user id.
 	 *
-	 * @param mixed $value Order item meta value
+	 * @param mixed $value Order item meta value.
 	 */
 	public static function format_recipient_meta_value( $value ) {
 		if ( false !== strpos( $value, 'wcsg_recipient_id' ) ) {
@@ -342,7 +413,7 @@ class WCSG_Recipient_Management {
 
 			return WCS_Gifting::get_user_display_name( $recipient_id, $strip_tags );
 
-		} else if ( false !== strpos( $value, 'wcsg_deleted_recipient_data' ) ) {
+		} elseif ( false !== strpos( $value, 'wcsg_deleted_recipient_data' ) ) {
 
 			$recipient_data = json_decode( substr( $value, strlen( 'wcsg_deleted_recipient_data_' ) ), true );
 			return $recipient_data['display_name'];
@@ -378,7 +449,7 @@ class WCSG_Recipient_Management {
 			$recipient_shipping_address = WC()->countries->get_formatted_address( WCS_Gifting::get_users_shipping_address( $recipient_id ) );
 			$recipient_display_name     = WCS_Gifting::get_user_display_name( $recipient_id );
 
-		} else if ( ! empty( $deleted_recipient_meta ) ) {
+		} elseif ( ! empty( $deleted_recipient_meta ) ) {
 
 			$recipient_data         = json_decode( substr( $deleted_recipient_meta, strlen( 'wcsg_deleted_recipient_data_' ) ), true );
 			$recipient_display_name = $recipient_data['display_name'];
@@ -394,9 +465,14 @@ class WCSG_Recipient_Management {
 				$recipient_shipping_address = 'N/A';
 			}
 
+			$tooltip_content  = '';
+			$tooltip_content .= __( 'Shipping:', 'woocommerce-subscriptions-gifting' );
+			$tooltip_content .= ' ';
+			$tooltip_content .= $recipient_shipping_address;
+
 			echo '<br />';
-			echo '<b>Recipient:</b> ' . wp_kses( $recipient_display_name , wp_kses_allowed_html( 'user_description' ) );
-			echo '<img class="help_tip" data-tip="Shipping: ' . esc_attr( $recipient_shipping_address ) . '" src="' . esc_url( WC()->plugin_url() ) . '/assets/images/help.png" height="16" width="16" />';
+			echo '<b>' . esc_html__( 'Recipient:', 'woocommerce-subscriptions-gifting' ) . '</b> ' . wp_kses( $recipient_display_name, wp_kses_allowed_html( 'user_description' ) );
+			echo '<img class="help_tip" data-tip="' . wc_sanitize_tooltip( $tooltip_content ) . '" src="' . esc_url( WC()->plugin_url() ) . '/assets/images/help.png" height="16" width="16" />'; // phpcs:ignore WordPress.XSS.EscapeOutput.OutputNotEscaped
 		}
 	}
 
@@ -407,16 +483,16 @@ class WCSG_Recipient_Management {
 	 */
 	public static function maybe_remove_recipient( $user_id ) {
 
-		$gifted_subscriptions = WCSG_Recipient_Management::get_recipient_subscriptions( $user_id );
+		$gifted_subscriptions = self::get_recipient_subscriptions( $user_id );
 		$gifted_items         = WCS_Gifting::get_recipient_order_items( $user_id );
 
 		if ( ! empty( $gifted_subscriptions ) ) {
 			foreach ( $gifted_subscriptions as $subscription_id ) {
-				update_post_meta( $subscription_id, '_recipient_user', 'deleted_recipient' );
+				WCS_Gifting::set_recipient_user( $subscription, 'deleted_recipient' );
 			}
 
 			$recipient      = get_user_by( 'id', $user_id );
-			$recipient_data = json_encode(
+			$recipient_data = wp_json_encode(
 				array_merge(
 					array( 'display_name' => addslashes( WCS_Gifting::get_user_display_name( $user_id ) ) ),
 					WCS_Gifting::get_users_shipping_address( $user_id )
@@ -439,29 +515,32 @@ class WCSG_Recipient_Management {
 
 		$recipient_users = array();
 
-		if ( empty( $_REQUEST['users'] ) ) {
+		$user_ids = array();
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+		if ( empty( $_REQUEST['users'] ) && ! empty( $_REQUEST['user'] ) ) {
 			$user_ids = array( $_REQUEST['user'] );
 		} else {
 			$user_ids = $_REQUEST['users'];
 		}
+		// phpcs:enable
 
 		if ( ! empty( $user_ids ) ) {
 
 			foreach ( $user_ids as $user_id ) {
 
-				$gifted_subscriptions = WCSG_Recipient_Management::get_recipient_subscriptions( $user_id );
+				$gifted_subscriptions = self::get_recipient_subscriptions( $user_id );
 
-				if ( 0 != count( $gifted_subscriptions ) ) {
+				if ( 0 !== count( $gifted_subscriptions ) ) {
 					$recipient_users[ $user_id ] = $gifted_subscriptions;
 				}
 			}
 
 			$recipients_count = count( $recipient_users );
 
-			if ( 0 != $recipients_count ) {
+			if ( 0 !== $recipients_count ) {
 
 				echo '<p><strong>' . esc_html__( 'WARNING:', 'woocommerce-subscriptions-gifting' ) . ' </strong>';
-				echo esc_html( _n( 'The following recipient will be removed from their subscriptions:', 'The following recipients will be removed from their subscriptions:',$recipients_count, 'woocommerce-subscriptions-gifting' ) );
+				echo esc_html( _n( 'The following recipient will be removed from their subscriptions:', 'The following recipients will be removed from their subscriptions:', $recipients_count, 'woocommerce-subscriptions-gifting' ) );
 
 				echo '<p><dl>';
 
@@ -474,7 +553,7 @@ class WCSG_Recipient_Management {
 					foreach ( $subscriptions as $subscription_id ) {
 
 						$subscription = wcs_get_subscription( $subscription_id );
-						echo '<dd>' . esc_html__( 'Subscription' , 'woocommerce-subscriptions-gifting' ) . ' <a href="' . esc_url( wcs_get_edit_post_link( $subscription->id ) ) . '">#' . esc_html( $subscription->get_order_number() ) . '</a></dd>';
+						echo '<dd>' . esc_html__( 'Subscription', 'woocommerce-subscriptions-gifting' ) . ' <a href="' . esc_url( wcs_get_edit_post_link( wcsg_get_objects_id( $subscription ) ) ) . '">#' . esc_html( $subscription->get_order_number() ) . '</a></dd>';
 
 					}
 				}
@@ -486,11 +565,36 @@ class WCSG_Recipient_Management {
 	}
 
 	/**
+	 * On password reset, if the user needs to update account, sets a (temporary) flag
+	 *
+	 * @param WP_User $user User object.
+	 *
+	 * @since 2.1.0
+	 */
+	public static function maybe_add_recipient_reset_password_flag( $user ) {
+		if ( 'true' === get_user_meta( $user->ID, 'wcsg_update_account', true ) ) {
+			update_user_meta( $user->ID, 'wcsg_recipient_just_reset_password', 'true' );
+		}
+	}
+
+	/**
+	 * Does the user require a new password after password reset?
+	 *
+	 * @param Int $user_id User ID we want to validate.
+	 *
+	 * @return bool
+	 * @since 2.1.0
+	 */
+	public static function user_requires_new_password( $user_id ) {
+		return ! metadata_exists( 'user', $user_id, 'wcsg_recipient_just_reset_password' );
+	}
+
+	/**
 	 * On subscription status changes, maybe update the role of the subscription recipient (if set) depending on the new subscription status.
 	 * Sets the recipient user to the inactive subscriber role on on-hold, cancelled, expired statuses and an active subscriber role on active statuses.
 	 *
-	 * @param WC_Subscription $subscription
-	 * @param string $new_status The subscription's new status
+	 * @param WC_Subscription $subscription Subscription object.
+	 * @param string          $new_status   The subscription's new status.
 	 */
 	public static function maybe_update_recipient_role( $subscription, $new_status ) {
 
@@ -501,13 +605,43 @@ class WCSG_Recipient_Management {
 		);
 
 		if ( WCS_Gifting::is_gifted_subscription( $subscription ) ) {
+			$recipient_user_id = WCS_Gifting::get_recipient_user( $subscription );
 
-			if ( in_array( $new_status, $inactive_statuses ) ) {
-				wcs_maybe_make_user_inactive( $subscription->recipient_user );
-			} else if ( 'active' == $new_status ) {
-				wcs_make_user_active( $subscription->recipient_user );
+			if ( in_array( $new_status, $inactive_statuses, true ) ) {
+				wcs_maybe_make_user_inactive( $recipient_user_id );
+			} elseif ( 'active' === $new_status ) {
+				wcs_make_user_active( $recipient_user_id );
 			}
 		}
+	}
+
+	/**
+	 * Maybe add recipient information to order item meta.
+	 *
+	 * This function is hooked onto an action introduced in WC 3.0 and uses WC 3.0+ data structures and functions.
+	 * This is a WC 3.0+ equivalent of @see WCSG_Recipient_Management::maybe_add_recipient_order_item_meta().
+	 *
+	 * @param WC_Order_Item_Product $item          The cart's item.
+	 * @param string                $cart_item_key The hash used to identify the item in the cart.
+	 * @param array                 $cart_item     The cart item's data.
+	 * @since 1.0.1
+	 */
+	public static function add_order_item_meta( $item, $cart_item_key, $cart_item ) {
+		$recipient_user_id = WCSG_Cart::get_recipient_from_cart_item( $cart_item );
+
+		if ( $recipient_user_id ) {
+			$item->add_meta_data( 'wcsg_recipient', 'wcsg_recipient_id_' . $recipient_user_id );
+		}
+	}
+
+	/**
+	 * Attach WooCommerce version dependent hooks
+	 *
+	 * @since 1.0.1
+	 * @deprecated 2.0.0
+	 */
+	public static function attach_dependant_hooks() {
+		_deprecated_function( __METHOD__, '2.0.0', __CLASS__ . '::init()' );
 	}
 }
 WCSG_Recipient_Management::init();

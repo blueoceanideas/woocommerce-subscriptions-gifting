@@ -1,4 +1,17 @@
 <?php
+/**
+ * Integration with product pages on the frontend.
+ *
+ * @package WooCommerce Subscriptions Gifting
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
+/**
+ * Class for integrating with product pages.
+ */
 class WCSG_Product {
 
 	/**
@@ -18,24 +31,25 @@ class WCSG_Product {
 	 * If the recipient email is invalid (incorrect email format or belongs to the current user) an exception is thrown
 	 * and caught by WooCommerce add to cart function - preventing the product being entered into the cart.
 	 *
-	 * @param cart_item_data
-	 * @return cart_item_data
+	 * @param cart_item_data $cart_item_data Cart item data.
+	 * @return array New cart item data.
+	 * @throws Exception In case of error.
 	 */
 	public static function add_recipient_data( $cart_item_data ) {
 
 		if ( isset( $_POST['recipient_email'] ) && ! empty( $_POST['recipient_email'][0] ) ) {
-			if ( ! empty( $_POST['_wcsgnonce'] ) && wp_verify_nonce( $_POST['_wcsgnonce'], 'wcsg_add_recipient' ) ) {
+			if ( ! empty( $_POST['_wcsgnonce'] ) && wp_verify_nonce( $_POST['_wcsgnonce'], 'wcsg_add_recipient' ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 
-				if ( WCS_Gifting::validate_recipient_emails( $_POST['recipient_email'] ) ) {
+				if ( WCS_Gifting::validate_recipient_emails( wp_unslash( $_POST['recipient_email'] ) ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
-					$cart_item_data['wcsg_gift_recipients_email'] = sanitize_email( $_POST['recipient_email'][0] );
+					$cart_item_data['wcsg_gift_recipients_email'] = sanitize_email( wp_unslash( $_POST['recipient_email'][0] ) );
 
 				} else {
-					// throw exception to be caught by WC add_to_cart(). validate_recipient_emails() will have added the relevant notices
+					// throw exception to be caught by WC add_to_cart(). validate_recipient_emails() will have added the relevant notices.
 					throw new Exception();
 				}
 			} else {
-				throw new Exception( __( 'There was an error with your request. Please try again..', 'woocommerce-subscriptions-gifting' ) );
+				throw new Exception( __( 'There was an error with your request. Please try again.', 'woocommerce-subscriptions-gifting' ) );
 			}
 		}
 
@@ -45,12 +59,12 @@ class WCSG_Product {
 	/**
 	 * Adds the recipient information to the session cart item data.
 	 *
-	 * @param object|item The Session Data stored for an item in the cart
-	 * @param object|values The data stored on a cart item
-	 * @return object|item The session data with added cart item recipient information
+	 * @param object $item   The Session Data stored for an item in the cart.
+	 * @param object $values The data stored on a cart item.
+	 * @return object The session data with added cart item recipient information.
 	 */
 	public static function get_cart_items_from_session( $item, $values ) {
-		if ( array_key_exists( 'wcsg_gift_recipients_email', $values ) ) { // previously added at the product page via $cart_item_data
+		if ( array_key_exists( 'wcsg_gift_recipients_email', $values ) ) { // previously added at the product page via $cart_item_data.
 			$item['wcsg_gift_recipients_email'] = $values['wcsg_gift_recipients_email'];
 			unset( $values['wcsg_gift_recipients_email'] );
 		}
@@ -64,17 +78,18 @@ class WCSG_Product {
 		global $product;
 		if ( self::is_giftable( $product ) && ! isset( $_GET['switch-subscription'] ) ) {
 			$email = '';
-			if ( ! empty( $_POST['recipient_email'][0] ) && ! empty( $_POST['_wcsgnonce'] ) && wp_verify_nonce( $_POST['_wcsgnonce'], 'wcsg_add_recipient' ) ) {
-				$email = $_POST['recipient_email'][0];
+			if ( ! empty( $_POST['recipient_email'][0] ) && ! empty( $_POST['_wcsgnonce'] ) && wp_verify_nonce( $_POST['_wcsgnonce'], 'wcsg_add_recipient' ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+				$email = $_POST['recipient_email'][0]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 			}
-			wc_get_template( 'html-add-recipient.php', array( 'email_field_args' => WCS_Gifting::get_recipient_email_field_args( $email ), 'id' => 0, 'email' => $email ), '', plugin_dir_path( WCS_Gifting::$plugin_file ) . 'templates/' );
+
+			WCS_Gifting::render_add_recipient_fields( $email );
 		}
 	}
 
 	/**
 	 * Checks if a given product is a giftable product
 	 *
-	 * @param int|WC_Product $product A WC_Product object or the ID of a product to check
+	 * @param int|WC_Product $product A WC_Product object or the ID of a product to check.
 	 * @return bool
 	 */
 	public static function is_giftable( $product ) {

@@ -1,4 +1,17 @@
 <?php
+/**
+ * Address update handling.
+ *
+ * @package WooCommerce Subscriptions Gifting
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
+/**
+ * Allow for updating subscription addresses taking into consideration purchaser/recipient subscriptions.
+ */
 class WCSG_Recipient_Addresses {
 
 	/**
@@ -16,28 +29,31 @@ class WCSG_Recipient_Addresses {
 	 * When setting shipping addresses only include those which the user has purchased for themselves or have been gifted to them.
 	 * When setting billing addresses only include subscriptions that belong to the user and those they have gifted to another user.
 	 *
-	 * @param array|subscriptions
-	 * @return array|subscriptions
+	 * @param array $subscriptions Array of subscriptions.
+	 * @param int   $user_id       User ID.
+	 * @return array
 	 */
 	public static function get_users_subscriptions( $subscriptions, $user_id ) {
 
-		if ( ( 'shipping' == get_query_var( 'edit-address' ) || 'billing' == get_query_var( 'edit-address' ) ) && ! isset( $_GET['subscription'] ) ) {
+		if ( ( 'shipping' === get_query_var( 'edit-address' ) || 'billing' === get_query_var( 'edit-address' ) ) && ! isset( $_GET['subscription'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 			// We dont want to update the shipping address of subscriptions the user isn't the recipient of.
-			if ( 'shipping' == get_query_var( 'edit-address' ) ) {
+			if ( 'shipping' === get_query_var( 'edit-address' ) ) {
 
 				foreach ( $subscriptions as $subscription_id => $subscription ) {
+					$recipient_user_id = WCS_Gifting::get_recipient_user( $subscription );
 
-					if ( ! empty( $subscription->recipient_user ) && $subscription->recipient_user != $user_id ) {
+					if ( ! empty( $recipient_user_id ) && $recipient_user_id != $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 						unset( $subscriptions[ $subscription_id ] );
 					}
 				}
-			} else if ( 'billing' == get_query_var( 'edit-address' ) ) {
+			} elseif ( 'billing' === get_query_var( 'edit-address' ) ) {
 
 				// We dont want to update the billing address of gifted subscriptions for this user.
 				foreach ( $subscriptions as $subscription_id => $subscription ) {
+					$recipient_user_id = WCS_Gifting::get_recipient_user( $subscription );
 
-					if ( ! empty( $subscription->recipient_user ) && $subscription->recipient_user == $user_id ) {
+					if ( ! empty( $recipient_user_id ) && $recipient_user_id == $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
 						unset( $subscriptions[ $subscription_id ] );
 					}
 				}
@@ -51,19 +67,21 @@ class WCSG_Recipient_Addresses {
 	 * Appends a notice to the 'update all subscriptions addresses' checkbox notifing the customer that updating all
 	 * subscription addresses will not update gifted subscriptions, depending on which address is being updated.
 	 *
-	 * @param string the generated html element field string
-	 * @param string the id attribute of the html element being generated
+	 * @param string $field    The generated html element field string.
+	 * @param string $field_id The id attribute of the html element being generated.
 	 */
 	public static function display_update_all_addresses_notice( $field, $field_id ) {
 
-		if ( 'update_all_subscriptions_addresses' == $field_id && ( 'shipping' == get_query_var( 'edit-address' ) || 'billing' == get_query_var( 'edit-address' ) ) ) {
+		if ( 'update_all_subscriptions_addresses' === $field_id && ( 'shipping' === get_query_var( 'edit-address' ) || 'billing' === get_query_var( 'edit-address' ) ) ) {
 
 			switch ( get_query_var( 'edit-address' ) ) {
 				case 'shipping':
-					$field = substr_replace( $field, '<small>' . sprintf( esc_html__( '%1$sNote:%2$s This will not update the shipping address of subscriptions you have purchased for others.', 'woocommerce-subscriptions-gifting' ), '<strong>', '</strong>' ) . '</small>', strpos( $field,'</p>' ), 0 );
+					// Translators: 1) <strong> opening tag, 2) </strong> closing tag.
+					$field = substr_replace( $field, '<small>' . sprintf( esc_html__( '%1$sNote:%2$s This will not update the shipping address of subscriptions you have purchased for others.', 'woocommerce-subscriptions-gifting' ), '<strong>', '</strong>' ) . '</small>', strpos( $field, '</p>' ), 0 );
 					break;
 				case 'billing':
-					$field = substr_replace( $field, '<small>' . sprintf( esc_html__( '%1$sNote:%2$s This will not update the billing address of subscriptions purchased for you by someone else.', 'woocommerce-subscriptions-gifting' ), '<strong>', '</strong>' ) . '</small>', strpos( $field,'</p>' ), 0 );
+					// Translators: 1) <strong> opening tag, 2) </strong> closing tag.
+					$field = substr_replace( $field, '<small>' . sprintf( esc_html__( '%1$sNote:%2$s This will not update the billing address of subscriptions purchased for you by someone else.', 'woocommerce-subscriptions-gifting' ), '<strong>', '</strong>' ) . '</small>', strpos( $field, '</p>' ), 0 );
 					break;
 			}
 		}
